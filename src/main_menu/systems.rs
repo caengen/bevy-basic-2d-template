@@ -1,15 +1,15 @@
 use bevy::prelude::*;
 
-use crate::AppState;
+use crate::GameState;
 
 use super::components::MainMenuText;
 
 pub fn transition_to_game(
-    mut next_state: ResMut<NextState<AppState>>,
+    mut next_state: ResMut<NextState<GameState>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if keyboard.pressed(KeyCode::Space) {
-        next_state.set(AppState::InGame);
+        next_state.set(GameState::InGame);
     }
 }
 
@@ -49,10 +49,7 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         )])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Percent(30.0),
-                ..default()
-            },
+            top: Val::Percent(30.0),
             margin: UiRect {
                 left: Val::Auto,
                 right: Val::Auto,

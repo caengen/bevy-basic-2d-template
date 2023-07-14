@@ -1,15 +1,12 @@
+use bevy::ui::ContentSize;
 use bevy::{math::vec2, prelude::*};
-use bevy_ecs_tilemap::helpers::square_grid::neighbors::Neighbors;
-use bevy_ecs_tilemap::prelude::*;
-use rand::Rng;
-use std::{f32::consts::E, time::Duration};
-
-use crate::random::Random;
+use bevy_turborand::DelegatedRng;
+use bevy_turborand::{GlobalRng, RngComponent};
+use std::time::Duration;
 
 use super::{
     components::{
-        AnimationIndices, AnimationTimer, Direction, ExampleGameText, Paused, PausedText, Player,
-        Pos, Vel,
+        AnimationIndices, AnimationTimer, ExampleGameText, Paused, PausedText, Player, Pos, Vel,
     },
     effects::Flick,
 };
@@ -94,8 +91,9 @@ pub fn game_keys(
 pub fn example_setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut rng: Local<Random>,
+    mut global_rng: ResMut<GlobalRng>,
 ) {
+    let mut rng = RngComponent::from(&mut global_rng);
     // Text with multiple sections
     commands.spawn((
         // Create a TextBundle that has a Text with a list of sections.
@@ -109,14 +107,11 @@ pub fn example_setup(
         )])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(5.0),
-                left: Val::Px(15.0),
-                ..default()
-            },
+            top: Val::Px(5.0),
+            left: Val::Px(15.0),
             ..default()
         }),
-        Vel(vec2(rng.gen_range(1.0..1.5), rng.gen_range(1.0..1.5))),
+        Vel(vec2(1.0 + rng.f32() * 1.5, 1.0 + rng.f32() * 1.5)),
         Pos(vec2(5.0, 15.0)),
         ExampleGameText,
         Flick {
@@ -136,11 +131,8 @@ pub fn example_setup(
         )])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                ..default()
-            },
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
             ..default()
         }),
         Vel(vec2(1.0, 1.0)),
@@ -173,36 +165,36 @@ pub fn setup_player(
     ));
 }
 
-pub fn setup_level(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Size of the tile map in tiles.
-    let map_size = TilemapSize { x: 32, y: 32 };
+// pub fn setup_level(mut commands: Commands, asset_server: Res<AssetServer>) {
+//     // Size of the tile map in tiles.
+//     let map_size = TilemapSize { x: 32, y: 32 };
 
-    // To create a map we use the TileStorage component.
-    // This component is a grid of tile entities and is used to help keep track of individual
-    // tiles in the world. If you have multiple layers of tiles you would have a Tilemap2dStorage
-    // component per layer.
-    let mut tile_storage = TileStorage::empty(map_size);
+//     // To create a map we use the TileStorage component.
+//     // This component is a grid of tile entities and is used to help keep track of individual
+//     // tiles in the world. If you have multiple layers of tiles you would have a Tilemap2dStorage
+//     // component per layer.
+//     let mut tile_storage = TileStorage::empty(map_size);
 
-    // For the purposes of this example, we consider a tilemap with rectangular tiles.
-    let map_type = TilemapType::Square;
+//     // For the purposes of this example, we consider a tilemap with rectangular tiles.
+//     let map_type = TilemapType::Square;
 
-    let tilemap_entity = commands.spawn_empty().id();
+//     let tilemap_entity = commands.spawn_empty().id();
 
-    // Spawn a 32 by 32 tilemap.
-    // Alternatively, you can use helpers::fill_tilemap.
-    for x in 0..map_size.x {
-        for y in 0..map_size.y {
-            let tile_pos = TilePos { x, y };
-            let tile_entity = commands
-                .spawn(TileBundle {
-                    position: tile_pos,
-                    tilemap_id: TilemapId(tilemap_entity),
-                    ..Default::default()
-                })
-                .id();
-        }
-    }
-}
+//     // Spawn a 32 by 32 tilemap.
+//     // Alternatively, you can use helpers::fill_tilemap.
+//     for x in 0..map_size.x {
+//         for y in 0..map_size.y {
+//             let tile_pos = TilePos { x, y };
+//             let tile_entity = commands
+//                 .spawn(TileBundle {
+//                     position: tile_pos,
+//                     tilemap_id: TilemapId(tilemap_entity),
+//                     ..Default::default()
+//                 })
+//                 .id();
+//         }
+//     }
+// }
 
 pub fn teardown(mut commands: Commands, texts: Query<(Entity, With<ExampleGameText>)>) {
     for (entity, _) in texts.iter() {
@@ -212,39 +204,30 @@ pub fn teardown(mut commands: Commands, texts: Query<(Entity, With<ExampleGameTe
 
 pub fn example_update(
     window: Query<&Window>,
-    mut texts: Query<(
-        &mut Style,
-        &CalculatedSize,
-        &mut Pos,
-        &mut Vel,
-        With<ExampleGameText>,
-    )>,
+    mut texts: Query<(&mut Style, &mut Pos, &mut Vel, With<ExampleGameText>)>,
 ) {
     let window = window.get_single().unwrap();
-    for (mut style, calculated_size, mut pos, mut vel, _) in texts.iter_mut() {
+    for (mut style, mut pos, mut vel, _) in texts.iter_mut() {
         pos.0.y += vel.0.y;
         pos.0.x += vel.0.x;
 
-        if pos.0.y + calculated_size.size.y > window.height() {
-            pos.0.y = window.height() - calculated_size.size.y;
+        if pos.0.y > window.height() {
+            pos.0.y = window.height();
             vel.0.y *= -1.0;
         } else if pos.0.y < 0.0 {
             pos.0.y = 0.0;
             vel.0.y *= -1.0;
         }
-        if pos.0.x + calculated_size.size.x > window.width() {
-            pos.0.x = window.width() - calculated_size.size.x;
+        if pos.0.x > window.width() {
+            pos.0.x = window.width();
             vel.0.x *= -1.0;
         } else if pos.0.x < 0.0 {
             pos.0.x = 0.0;
             vel.0.x *= -1.0;
         }
 
-        style.position = UiRect {
-            top: Val::Px(pos.0.y),
-            left: Val::Px(pos.0.x),
-            ..default()
-        };
+        style.top = Val::Px(pos.0.y);
+        style.left = Val::Px(pos.0.x);
     }
 }
 

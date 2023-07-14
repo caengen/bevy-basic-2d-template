@@ -1,31 +1,37 @@
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     diagnostic::FrameTimeDiagnosticsPlugin,
-    input::common_conditions::input_toggle_active,
     log::{Level, LogPlugin},
     prelude::*,
     window::PresentMode,
     DefaultPlugins,
 };
+use bevy_asset_loader::prelude::{AssetCollection, LoadingState, LoadingStateAppExt};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_turborand::prelude::RngPlugin;
 use config::Debug;
 use game::GamePlugin;
 use main_menu::*;
-use rand::Rng;
-use random::{Random, RandomPlugin};
 use std::{env, process};
 
 mod config;
 mod game;
 mod main_menu;
-mod random;
 
-pub const SCREEN: Vec2 = Vec2::from_array([512.0, 512.0]);
+pub const SCREEN: Vec2 = Vec2::from_array([495.0, 270.0]);
 pub const DARK: Color = Color::rgb(0.191, 0.184, 0.156);
 pub const LIGHT: Color = Color::rgb(0.852, 0.844, 0.816);
 
+// Example: Easy loading of assets
+// #[derive(AssetCollection, Resource)]
+// pub struct ImageAssets {
+//     #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 8, rows = 1))]
+//     #[asset(path = "textures/images.png")]
+//     pub images: Handle<TextureAtlas>,
+// }
+
 #[derive(States, Hash, Clone, PartialEq, Eq, Debug, Default)]
-pub enum AppState {
+pub enum GameState {
     #[default]
     MainMenu,
     InGame,
@@ -64,14 +70,18 @@ fn main() {
             })
             .set(ImagePlugin::default_nearest()),
     )
-    .add_state::<AppState>()
+    .add_state::<GameState>()
     .insert_resource(Debug(cfg.debug))
-    .add_plugin(FrameTimeDiagnosticsPlugin::default())
-    .add_plugin(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)))
-    .add_plugin(RandomPlugin)
-    .add_plugin(MainMenuPlugin)
-    .add_plugin(GamePlugin)
-    .add_startup_system(setup);
+    // Example: Easy loading of assets
+    // .add_collection_to_loading_state::<_, ImageAssets>(GameState::AssetLoading)
+    .add_plugins(FrameTimeDiagnosticsPlugin::default())
+    // .add_plugins(
+    //     WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
+    // )
+    .add_plugins(RngPlugin::new().with_rng_seed(220718))
+    .add_plugins(MainMenuPlugin)
+    .add_plugins(GamePlugin)
+    .add_systems(Startup, setup);
 
     app.run();
 }
