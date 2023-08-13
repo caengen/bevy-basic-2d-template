@@ -12,6 +12,7 @@ use bevy::prelude::*;
 mod collision;
 mod components;
 mod effects;
+pub mod prelude;
 mod systems;
 
 pub struct GamePlugin;

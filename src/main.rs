@@ -1,4 +1,5 @@
 use bevy::{
+    asset::ChangeWatcher,
     core_pipeline::clear_color::ClearColorConfig,
     diagnostic::FrameTimeDiagnosticsPlugin,
     log::{Level, LogPlugin},
@@ -7,12 +8,17 @@ use bevy::{
     DefaultPlugins,
 };
 use bevy_asset_loader::prelude::{AssetCollection, LoadingState, LoadingStateAppExt};
+use bevy_egui::EguiSettings;
+use bevy_egui::{
+    egui::{FontData, FontDefinitions, FontFamily},
+    EguiContexts, EguiPlugin,
+};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
 use config::Debug;
-use game::GamePlugin;
+use game::{prelude::MainCamera, GamePlugin};
 use main_menu::*;
-use std::{env, process};
+use std::{env, process, time::Duration};
 
 mod config;
 mod game;
@@ -68,29 +74,81 @@ fn main() {
                 level: Level::DEBUG,
                 filter: "wgpu=error,bevy_render=info,bevy_ecs=trace".to_string(),
             })
-            .set(ImagePlugin::default_nearest()),
+            .set(ImagePlugin::default_nearest())
+            .set(AssetPlugin {
+                watch_for_changes: Some(ChangeWatcher {
+                    delay: Duration::from_millis(200),
+                }),
+                ..Default::default()
+            }),
     )
     .add_state::<GameState>()
     .insert_resource(Debug(cfg.debug))
     // Example: Easy loading of assets
     // .add_collection_to_loading_state::<_, ImageAssets>(GameState::AssetLoading)
-    .add_plugins(FrameTimeDiagnosticsPlugin::default())
     // .add_plugins(
     //     WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
     // )
-    .add_plugins(RngPlugin::new().with_rng_seed(220718))
-    .add_plugins(MainMenuPlugin)
-    .add_plugins(GamePlugin)
-    .add_systems(Startup, setup);
+    .add_plugins((
+        FrameTimeDiagnosticsPlugin::default(),
+        RngPlugin::new().with_rng_seed(220718),
+        EguiPlugin,
+        MainMenuPlugin,
+        GamePlugin,
+    ))
+    .add_systems(Startup, (setup, setup_fonts))
+    .add_systems(Update, window_resized);
 
     app.run();
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        camera_2d: Camera2d {
-            clear_color: ClearColorConfig::Custom(DARK),
+    commands.spawn((
+        Camera2dBundle {
+            camera_2d: Camera2d {
+                clear_color: ClearColorConfig::Custom(DARK),
+            },
+            ..default()
         },
-        ..default()
-    });
+        MainCamera,
+    ));
+}
+
+fn setup_fonts(mut contexts: EguiContexts) {
+    let mut fonts = FontDefinitions::default();
+
+    // Install my own font (maybe supporting non-latin characters):
+    fonts.font_data.insert(
+        "visitor".to_owned(),
+        FontData::from_static(include_bytes!("../assets/fonts/visitor.ttf")),
+    ); // .ttf and .otf supported
+
+    // Put my font first (highest priority):
+    fonts
+        .families
+        .get_mut(&FontFamily::Proportional)
+        .unwrap()
+        .insert(0, "visitor".to_owned());
+
+    // Put my font as last fallback for monospace:
+    fonts
+        .families
+        .get_mut(&FontFamily::Monospace)
+        .unwrap()
+        .push("visitor".to_owned());
+
+    contexts.ctx_mut().set_fonts(fonts);
+}
+
+pub fn window_resized(
+    windows: Query<&Window>,
+    mut q: Query<&mut OrthographicProjection, With<MainCamera>>,
+    mut egui_settings: ResMut<EguiSettings>,
+) {
+    let window = windows.single();
+    let scale = SCREEN.x / window.width();
+    for mut projection in q.iter_mut() {
+        projection.scale = scale;
+        egui_settings.scale_factor = (window.width() / SCREEN.x).into();
+    }
 }
