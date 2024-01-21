@@ -1,5 +1,4 @@
 use bevy::{
-    asset::ChangeWatcher,
     core_pipeline::clear_color::ClearColorConfig,
     diagnostic::FrameTimeDiagnosticsPlugin,
     log::{Level, LogPlugin},
@@ -66,6 +65,7 @@ fn main() {
                     fit_canvas_to_parent: true,
                     // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
                     prevent_default_event_handling: false,
+
                     ..default()
                 }),
                 ..default()
@@ -74,13 +74,7 @@ fn main() {
                 level: Level::DEBUG,
                 filter: "wgpu=error,bevy_render=info,bevy_ecs=trace".to_string(),
             })
-            .set(ImagePlugin::default_nearest())
-            .set(AssetPlugin {
-                watch_for_changes: Some(ChangeWatcher {
-                    delay: Duration::from_millis(200),
-                }),
-                ..Default::default()
-            }),
+            .set(ImagePlugin::default_nearest()),
     )
     .add_state::<GameState>()
     .insert_resource(Debug(cfg.debug))

@@ -30,7 +30,7 @@ impl Plugin for GamePlugin {
                 )
                     .run_if(in_state(GameState::InGame)),
             )
-            .configure_set(
+            .configure_sets(
                 Update,
                 PhysicsSet::Movement.before(PhysicsSet::CollisionDetection),
             )
