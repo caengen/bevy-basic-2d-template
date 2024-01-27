@@ -135,7 +135,7 @@ pub fn example_setup(
             right: Val::Px(0.0),
             ..default()
         }),
-        Vel(vec2(1.0, 1.0)),
+        Vel(vec2(0.10, 0.10)),
         Pos(vec2(5.0, 15.0)),
         ExampleGameText,
         PausedText,
@@ -205,6 +205,7 @@ pub fn teardown(mut commands: Commands, texts: Query<(Entity, With<ExampleGameTe
 pub fn example_update(
     window: Query<&Window>,
     mut texts: Query<(&mut Style, &mut Pos, &mut Vel, With<ExampleGameText>)>,
+    time: Res<Time>,
 ) {
     let window = window.get_single().unwrap();
     for (mut style, mut pos, mut vel, _) in texts.iter_mut() {

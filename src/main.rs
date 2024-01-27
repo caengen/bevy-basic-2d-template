@@ -6,7 +6,10 @@ use bevy::{
     window::PresentMode,
     DefaultPlugins,
 };
-use bevy_asset_loader::prelude::{AssetCollection, LoadingState, LoadingStateAppExt};
+use bevy_asset_loader::{
+    loading_state::config::ConfigureLoadingState,
+    prelude::{AssetCollection, LoadingState, LoadingStateAppExt},
+};
 use bevy_egui::EguiSettings;
 use bevy_egui::{
     egui::{FontData, FontDefinitions, FontFamily},
@@ -28,18 +31,22 @@ pub const DARK: Color = Color::rgb(0.191, 0.184, 0.156);
 pub const LIGHT: Color = Color::rgb(0.852, 0.844, 0.816);
 
 // Example: Easy loading of assets
-// #[derive(AssetCollection, Resource)]
-// pub struct ImageAssets {
-//     #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 8, rows = 1))]
-//     #[asset(path = "textures/images.png")]
-//     pub images: Handle<TextureAtlas>,
-// }
+#[derive(AssetCollection, Resource)]
+pub struct ImageAssets {
+    #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 8, rows = 1))]
+    #[asset(path = "textures/chars/char_atlas.png")]
+    pub images: Handle<TextureAtlas>,
+}
 
 #[derive(States, Hash, Clone, PartialEq, Eq, Debug, Default)]
 pub enum GameState {
     #[default]
+    AssetLoading,
     MainMenu,
+    EnterGame,
     InGame,
+    GameOver,
+    LeaveGame,
 }
 
 /**
@@ -79,7 +86,12 @@ fn main() {
     .add_state::<GameState>()
     .insert_resource(Debug(cfg.debug))
     // Example: Easy loading of assets
-    // .add_collection_to_loading_state::<_, ImageAssets>(GameState::AssetLoading)
+    .add_loading_state(
+        LoadingState::new(GameState::AssetLoading)
+            .continue_to_state(GameState::InGame)
+            .load_collection::<ImageAssets>(),
+    )
+    .insert_resource(Debug(cfg.debug))
     // .add_plugins(
     //     WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
     // )
@@ -90,13 +102,13 @@ fn main() {
         MainMenuPlugin,
         GamePlugin,
     ))
-    .add_systems(Startup, (setup, setup_fonts))
+    .add_systems(Startup, (setup_camera, setup_fonts))
     .add_systems(Update, window_resized);
 
     app.run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             camera_2d: Camera2d {
@@ -106,6 +118,10 @@ fn setup(mut commands: Commands) {
         },
         MainCamera,
     ));
+
+    // for mut window in windows.iter_mut() {
+    //     window.cursor.visible = false;
+    // }
 }
 
 fn setup_fonts(mut contexts: EguiContexts) {
