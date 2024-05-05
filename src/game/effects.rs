@@ -58,9 +58,9 @@ pub fn _shrink_system(mut shrinking: Query<(&mut Transform, &mut Shrink)>, time:
 pub fn _timed_removal_system(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut TimedRemoval, Without<DelayedVisibility>)>,
+    mut query: Query<(Entity, &mut TimedRemoval), Without<DelayedVisibility>>,
 ) {
-    for (entity, mut removal, _) in query.iter_mut() {
+    for (entity, mut removal) in query.iter_mut() {
         removal.0.tick(time.delta());
 
         if removal.0.finished() {

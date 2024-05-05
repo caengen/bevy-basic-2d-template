@@ -1,5 +1,4 @@
 use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
     diagnostic::FrameTimeDiagnosticsPlugin,
     log::{Level, LogPlugin},
     prelude::*,
@@ -35,7 +34,7 @@ pub const LIGHT: Color = Color::rgb(0.852, 0.844, 0.816);
 pub struct ImageAssets {
     #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 8, rows = 1))]
     #[asset(path = "textures/chars/char_atlas.png")]
-    pub images: Handle<TextureAtlas>,
+    pub images: Handle<TextureAtlasLayout>,
 }
 
 #[derive(States, Hash, Clone, PartialEq, Eq, Debug, Default)]
@@ -68,8 +67,6 @@ fn main() {
                     title: "TITLE OF YOUR GAME".into(),
                     resolution: (SCREEN.x, SCREEN.y).into(),
                     present_mode: PresentMode::AutoNoVsync,
-                    // Tells wasm to resize the window according to the available canvas
-                    fit_canvas_to_parent: true,
                     // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
                     prevent_default_event_handling: false,
 
@@ -80,10 +77,11 @@ fn main() {
             .set(LogPlugin {
                 level: Level::DEBUG,
                 filter: "wgpu=error,bevy_render=info,bevy_ecs=trace".to_string(),
+                ..default()
             })
             .set(ImagePlugin::default_nearest()),
     )
-    .add_state::<GameState>()
+    .init_state::<GameState>()
     .insert_resource(Debug(cfg.debug))
     // Example: Easy loading of assets
     .add_loading_state(
@@ -111,8 +109,9 @@ fn main() {
 fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
-            camera_2d: Camera2d {
+            camera: Camera {
                 clear_color: ClearColorConfig::Custom(DARK),
+                ..default()
             },
             ..default()
         },

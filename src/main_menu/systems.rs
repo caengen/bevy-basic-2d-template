@@ -6,7 +6,7 @@ use super::components::MainMenuText;
 
 pub fn transition_to_game(
     mut next_state: ResMut<NextState<GameState>>,
-    keyboard: Res<Input<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard.pressed(KeyCode::Space) {
         next_state.set(GameState::InGame);
@@ -61,8 +61,8 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
-pub fn teardown(mut commands: Commands, texts: Query<(Entity, With<MainMenuText>)>) {
-    for (entity, _) in texts.iter() {
+pub fn teardown(mut commands: Commands, texts: Query<Entity, With<MainMenuText>>) {
+    for entity in texts.iter() {
         commands.entity(entity).despawn();
     }
 }

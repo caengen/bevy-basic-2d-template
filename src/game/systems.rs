@@ -16,16 +16,16 @@ pub fn is_paused(paused: Res<Paused>) -> bool {
 }
 
 pub fn pause_controls(
-    keyboard: Res<Input<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut paused: ResMut<Paused>,
-    mut pause_texts: Query<(&mut Visibility, With<PausedText>)>,
+    mut pause_texts: Query<&mut Visibility, With<PausedText>>,
 ) {
-    if keyboard.just_pressed(KeyCode::P) {
+    if keyboard.just_pressed(KeyCode::KeyP) {
         paused.0 = !paused.0;
     }
 
     if paused.is_changed() {
-        for (mut vis, _) in pause_texts.iter_mut() {
+        for mut vis in pause_texts.iter_mut() {
             match paused.0 {
                 false => *vis = Visibility::Hidden,
                 true => *vis = Visibility::Inherited,
@@ -36,39 +36,40 @@ pub fn pause_controls(
 
 pub fn game_keys(
     mut paused: ResMut<Paused>,
-    keyboard: Res<Input<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<(
         &Player,
         &mut Transform,
         &mut AnimationIndices,
-        &mut TextureAtlasSprite,
+        &mut TextureAtlas,
+        &mut Sprite,
         &mut AnimationTimer,
     )>,
 ) {
     let mut direction = Vec2::ZERO;
 
-    if keyboard.any_pressed([KeyCode::Left, KeyCode::A]) {
+    if keyboard.any_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
         direction.x -= 1.0;
     }
-    if keyboard.any_pressed([KeyCode::Right, KeyCode::D]) {
+    if keyboard.any_pressed([KeyCode::ArrowRight, KeyCode::KeyD]) {
         direction.x += 1.0;
     }
-    if keyboard.any_pressed([KeyCode::Up, KeyCode::W]) {
+    if keyboard.any_pressed([KeyCode::ArrowUp, KeyCode::KeyW]) {
         direction.y += 1.0;
     }
-    if keyboard.any_pressed([KeyCode::Down, KeyCode::S]) {
+    if keyboard.any_pressed([KeyCode::ArrowDown, KeyCode::KeyS]) {
         direction.y -= 1.0;
     }
 
     let move_speed = 1.0;
     let move_delta = (direction * move_speed).extend(0.0);
 
-    for (_, mut transform, mut indices, mut sprite, mut timer) in player.iter_mut() {
+    for (_, mut transform, mut indices, mut atlas, mut sprite, mut timer) in player.iter_mut() {
         if direction == Vec2::ZERO {
             // update animation
             indices.first = 0;
             indices.last = 1;
-            sprite.index = usize::clamp(sprite.index, indices.first, indices.last);
+            atlas.index = usize::clamp(atlas.index, indices.first, indices.last);
             timer.0.set_duration(Duration::from_millis(500));
             continue;
         }
@@ -78,7 +79,7 @@ pub fn game_keys(
         // update animation
         indices.first = 2;
         indices.last = 3;
-        sprite.index = usize::clamp(sprite.index, indices.first, indices.last);
+        atlas.index = usize::clamp(atlas.index, indices.first, indices.last);
         if move_delta.x < 0.0 {
             sprite.flip_x = true;
         } else if move_delta.x > 0.0 {
@@ -111,7 +112,7 @@ pub fn example_setup(
             left: Val::Px(15.0),
             ..default()
         }),
-        Vel(vec2(1.0 + rng.f32() * 1.5, 1.0 + rng.f32() * 1.5)),
+        Vel(vec2(100.0 + rng.f32() * 1.5, 100.0 + rng.f32() * 1.5)),
         Pos(vec2(5.0, 15.0)),
         ExampleGameText,
         Flick {
@@ -145,18 +146,21 @@ pub fn example_setup(
 pub fn setup_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    let idle_handle = asset_server.load("textures/chars/char_atlas.png");
-    let idle_atlas =
-        TextureAtlas::from_grid(idle_handle, Vec2 { x: 16.0, y: 16.0 }, 4, 1, None, None);
-    let texture_atlas_handle = texture_atlases.add(idle_atlas);
+    let texture_handle = asset_server.load("textures/chars/char_atlas.png");
+    let layout = TextureAtlasLayout::from_grid(Vec2 { x: 16.0, y: 16.0 }, 4, 1, None, None);
+    let layout_handle = texture_atlases.add(layout);
     let anim_indices = AnimationIndices { first: 0, last: 1 };
     commands.spawn((
         SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle,
-            sprite: TextureAtlasSprite::new(anim_indices.first),
+            atlas: TextureAtlas {
+                layout: layout_handle,
+                index: anim_indices.first,
+            },
+            sprite: Sprite::default(),
             transform: Transform::from_scale(Vec3::splat(6.0)),
+            texture: texture_handle,
             ..default()
         },
         anim_indices,
@@ -196,21 +200,21 @@ pub fn setup_player(
 //     }
 // }
 
-pub fn teardown(mut commands: Commands, texts: Query<(Entity, With<ExampleGameText>)>) {
-    for (entity, _) in texts.iter() {
+pub fn teardown(mut commands: Commands, texts: Query<Entity, With<ExampleGameText>>) {
+    for entity in texts.iter() {
         commands.entity(entity).despawn();
     }
 }
 
 pub fn example_update(
     window: Query<&Window>,
-    mut texts: Query<(&mut Style, &mut Pos, &mut Vel, With<ExampleGameText>)>,
+    mut texts: Query<(&mut Style, &mut Pos, &mut Vel), With<ExampleGameText>>,
     time: Res<Time>,
 ) {
     let window = window.get_single().unwrap();
-    for (mut style, mut pos, mut vel, _) in texts.iter_mut() {
-        pos.0.y += vel.0.y;
-        pos.0.x += vel.0.x;
+    for (mut style, mut pos, mut vel) in texts.iter_mut() {
+        pos.0.y += vel.0.y * time.delta_seconds();
+        pos.0.x += vel.0.x * time.delta_seconds();
 
         if pos.0.y > window.height() {
             pos.0.y = window.height();
@@ -234,19 +238,15 @@ pub fn example_update(
 
 pub fn animate_sprite(
     time: Res<Time>,
-    mut query: Query<(
-        &AnimationIndices,
-        &mut AnimationTimer,
-        &mut TextureAtlasSprite,
-    )>,
+    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
 ) {
-    for (indices, mut timer, mut sprite) in &mut query {
+    for (indices, mut timer, mut atlas) in &mut query {
         timer.tick(time.delta());
         if timer.just_finished() {
-            sprite.index = if sprite.index == indices.last {
+            atlas.index = if atlas.index == indices.last {
                 indices.first
             } else {
-                sprite.index + 1
+                atlas.index + 1
             };
         }
     }
