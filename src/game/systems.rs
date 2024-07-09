@@ -14,10 +14,6 @@ use super::{
     effects::Flick,
 };
 
-pub fn is_paused(paused: Res<Paused>) -> bool {
-    paused.0
-}
-
 pub fn pause_controls(
     keyboard: Res<ButtonInput<KeyCode>>,
     curr_state: Res<State<GamePhase>>,
@@ -49,7 +45,6 @@ pub fn pause_controls(
 }
 
 pub fn game_keys(
-    curr_state: Res<State<GamePhase>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<(
         &Player,
@@ -61,10 +56,6 @@ pub fn game_keys(
     )>,
 ) {
     let mut direction = Vec2::ZERO;
-
-    if *curr_state.get() == GamePhase::Paused {
-        return;
-    }
 
     if keyboard.any_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
         direction.x -= 1.0;
@@ -226,14 +217,9 @@ pub fn teardown(mut commands: Commands, texts: Query<Entity, With<ExampleGameTex
 
 pub fn example_update(
     window: Query<&Window>,
-    curr_state: Res<State<GamePhase>>,
     mut texts: Query<(&mut Style, &mut Pos, &mut Vel), With<ExampleGameText>>,
     time: Res<Time>,
 ) {
-    if *curr_state.get() == GamePhase::Paused {
-        return;
-    }
-
     let window = window.get_single().unwrap();
     for (mut style, mut pos, mut vel) in texts.iter_mut() {
         pos.0.y += vel.0.y * time.delta_seconds();
@@ -261,13 +247,8 @@ pub fn example_update(
 
 pub fn animate_sprite(
     time: Res<Time>,
-    curr_state: Res<State<GamePhase>>,
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
 ) {
-    if *curr_state.get() == GamePhase::Paused {
-        return;
-    }
-
     for (indices, mut timer, mut atlas) in &mut query {
         timer.tick(time.delta());
         if timer.just_finished() {

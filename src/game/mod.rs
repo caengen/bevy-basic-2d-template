@@ -6,7 +6,7 @@ use self::{
         teardown,
     },
 };
-use crate::GameState;
+use crate::{GamePhase, GameState};
 use bevy::prelude::*;
 
 mod collision;
@@ -19,16 +19,11 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::InGame), (example_setup, setup_player))
+            .add_systems(Update, pause_controls.run_if(in_state(GameState::InGame)))
             .add_systems(
                 Update,
-                (
-                    game_keys,
-                    animate_sprite,
-                    example_update,
-                    flick_system,
-                    pause_controls,
-                )
-                    .run_if(in_state(GameState::InGame)),
+                (game_keys, animate_sprite, example_update, flick_system)
+                    .run_if(in_state(GamePhase::Playing)),
             )
             .configure_sets(
                 Update,
