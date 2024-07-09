@@ -44,8 +44,35 @@ pub enum GameState {
     MainMenu,
     EnterGame,
     InGame,
-    GameOver,
     LeaveGame,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+struct InGame;
+impl ComputedStates for InGame {
+    // Computed states can be calculated from one or many source states.
+    type SourceStates = GameState;
+
+    // Now, we define the rule that determines the value of our computed state.
+    fn compute(sources: GameState) -> Option<InGame> {
+        match sources {
+            // We can use pattern matching to express the
+            //"I don't care whether or not the game is paused" logic!
+            GameState::InGame { .. } => Some(InGame),
+            _ => None,
+        }
+    }
+}
+
+#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default)]
+// This macro means that `GamePhase` will only exist when we're in the `InGame` computed state.
+// The intermediate computed state is helpful for clarity here, but isn't required:
+// you can manually `impl SubStates` for more control, multiple parent states and non-default initial value!
+#[source(InGame = InGame)]
+enum GamePhase {
+    #[default]
+    Playing,
+    Paused,
 }
 
 /**
@@ -82,11 +109,13 @@ fn main() {
             .set(ImagePlugin::default_nearest()),
     )
     .init_state::<GameState>()
+    .add_computed_state::<InGame>()
+    .add_sub_state::<GamePhase>()
     .insert_resource(Debug(cfg.debug))
     // Example: Easy loading of assets
     .add_loading_state(
         LoadingState::new(GameState::AssetLoading)
-            .continue_to_state(GameState::InGame)
+            .continue_to_state(GameState::MainMenu)
             .load_collection::<ImageAssets>(),
     )
     .insert_resource(Debug(cfg.debug))

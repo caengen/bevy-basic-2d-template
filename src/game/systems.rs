@@ -2,7 +2,10 @@ use bevy::ui::ContentSize;
 use bevy::{math::vec2, prelude::*};
 use bevy_turborand::DelegatedRng;
 use bevy_turborand::{GlobalRng, RngComponent};
+use std::borrow::Borrow;
 use std::time::Duration;
+
+use crate::{GamePhase, GameState};
 
 use super::{
     components::{
@@ -17,25 +20,36 @@ pub fn is_paused(paused: Res<Paused>) -> bool {
 
 pub fn pause_controls(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut paused: ResMut<Paused>,
+    curr_state: Res<State<GamePhase>>,
+    mut next_state: ResMut<NextState<GamePhase>>,
     mut pause_texts: Query<&mut Visibility, With<PausedText>>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyP) {
-        paused.0 = !paused.0;
-    }
-
-    if paused.is_changed() {
-        for mut vis in pause_texts.iter_mut() {
-            match paused.0 {
-                false => *vis = Visibility::Hidden,
-                true => *vis = Visibility::Inherited,
+        let mut new_state = curr_state.clone();
+        match curr_state.get() {
+            GamePhase::Playing => {
+                new_state = GamePhase::Paused;
+                next_state.set(new_state.clone());
+            }
+            GamePhase::Paused => {
+                new_state = GamePhase::Playing;
+                next_state.set(new_state.clone());
+            }
+            _ => {}
+        }
+        if next_state.is_changed() {
+            for mut vis in pause_texts.iter_mut() {
+                match new_state {
+                    GamePhase::Playing => *vis = Visibility::Hidden,
+                    GamePhase::Paused => *vis = Visibility::Inherited,
+                }
             }
         }
     }
 }
 
 pub fn game_keys(
-    mut paused: ResMut<Paused>,
+    curr_state: Res<State<GamePhase>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<(
         &Player,
@@ -47,6 +61,10 @@ pub fn game_keys(
     )>,
 ) {
     let mut direction = Vec2::ZERO;
+
+    if *curr_state.get() == GamePhase::Paused {
+        return;
+    }
 
     if keyboard.any_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
         direction.x -= 1.0;
@@ -208,9 +226,14 @@ pub fn teardown(mut commands: Commands, texts: Query<Entity, With<ExampleGameTex
 
 pub fn example_update(
     window: Query<&Window>,
+    curr_state: Res<State<GamePhase>>,
     mut texts: Query<(&mut Style, &mut Pos, &mut Vel), With<ExampleGameText>>,
     time: Res<Time>,
 ) {
+    if *curr_state.get() == GamePhase::Paused {
+        return;
+    }
+
     let window = window.get_single().unwrap();
     for (mut style, mut pos, mut vel) in texts.iter_mut() {
         pos.0.y += vel.0.y * time.delta_seconds();
@@ -238,8 +261,13 @@ pub fn example_update(
 
 pub fn animate_sprite(
     time: Res<Time>,
+    curr_state: Res<State<GamePhase>>,
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
 ) {
+    if *curr_state.get() == GamePhase::Paused {
+        return;
+    }
+
     for (indices, mut timer, mut atlas) in &mut query {
         timer.tick(time.delta());
         if timer.just_finished() {
