@@ -32,7 +32,7 @@ pub const LIGHT: Color = Color::rgb(0.852, 0.844, 0.816);
 // Example: Easy loading of assets
 #[derive(AssetCollection, Resource)]
 pub struct ImageAssets {
-    #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 8, rows = 1))]
+    #[asset(texture_atlas(tile_size_x = 16, tile_size_y = 16, columns = 8, rows = 1))]
     #[asset(path = "textures/chars/char_atlas.png")]
     pub images: Handle<TextureAtlasLayout>,
 }

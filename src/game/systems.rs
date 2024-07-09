@@ -149,19 +149,19 @@ pub fn setup_player(
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let texture_handle = asset_server.load("textures/chars/char_atlas.png");
-    let layout = TextureAtlasLayout::from_grid(Vec2 { x: 16.0, y: 16.0 }, 4, 1, None, None);
-    let layout_handle = texture_atlases.add(layout);
+    let layout = TextureAtlasLayout::from_grid(UVec2::new(16, 16), 4, 1, None, None);
+    let atlas_layout = texture_atlases.add(layout);
     let anim_indices = AnimationIndices { first: 0, last: 1 };
     commands.spawn((
-        SpriteSheetBundle {
-            atlas: TextureAtlas {
-                layout: layout_handle,
-                index: anim_indices.first,
-            },
-            sprite: Sprite::default(),
-            transform: Transform::from_scale(Vec3::splat(6.0)),
+        TextureAtlas {
+            layout: atlas_layout,
+            index: anim_indices.first,
+            ..Default::default()
+        },
+        SpriteBundle {
             texture: texture_handle,
-            ..default()
+            transform: Transform::IDENTITY.with_scale(Vec3::splat(6.)),
+            ..Default::default()
         },
         anim_indices,
         AnimationTimer(Timer::from_seconds(0.5, TimerMode::Repeating)),
